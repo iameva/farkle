@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Farkle Companion</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: #f5f5f7;
+      color: #222;
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+    }
+
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 2rem;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(260px, 1fr) minmax(280px, 1.2fr) minmax(260px, 1fr);
+      gap: 20px;
+    }
+
+    section {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 120px;
+    }
+
+    section h2 {
+      margin: 0;
+      font-size: 1.2rem;
+    }
+
+    button {
+      border: none;
+      background: #2f5cff;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button.secondary {
+      background: #e8ebff;
+      color: #2f5cff;
+    }
+
+    button.danger {
+      background: #ff4d4d;
+    }
+
+    button:disabled {
+      background: #ccd2e3;
+      cursor: not-allowed;
+    }
+
+    input, select {
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid #d0d4e2;
+      font-size: 0.95rem;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .player-pill {
+      background: #f0f2ff;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .player-order {
+      display: grid;
+      gap: 8px;
+    }
+
+    .player-order li,
+    .order-preview li {
+      background: #fafafa;
+      border: 1px solid #e0e4ef;
+      border-radius: 8px;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .score-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .score-table th,
+    .score-table td {
+      text-align: left;
+      padding: 6px 4px;
+      border-bottom: 1px solid #edf0f7;
+    }
+
+    .history-list {
+      max-height: 320px;
+      overflow-y: auto;
+      display: grid;
+      gap: 8px;
+    }
+
+    .history-card {
+      background: #f9fafc;
+      border-radius: 10px;
+      padding: 10px;
+      border: 1px solid #e5e9f5;
+    }
+
+    .muted {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .order-preview {
+      display: grid;
+      gap: 6px;
+    }
+
+    .score-log {
+      max-height: 200px;
+      overflow-y: auto;
+      display: grid;
+      gap: 6px;
+    }
+
+    .score-log li {
+      background: #fdfdfd;
+      border: 1px solid #edf0f7;
+      border-radius: 6px;
+      padding: 6px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .player-actions button {
+      font-size: 0.8rem;
+      padding: 4px 8px;
+    }
+
+    @media (max-width: 1000px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Farkle Companion</h1>
+    <p class="muted">Track player order, scores, and fun stats. Everything saves locally so reloads keep your game.</p>
+  </header>
+
+  <main>
+    <section>
+      <h2>Start a new game</h2>
+      <p class="muted">Pick returning players or add new ones. Arrange order before you start.</p>
+      <div class="row">
+        <input id="new-player-name" type="text" placeholder="Add new player" />
+        <button id="add-player">Add</button>
+      </div>
+      <div>
+        <strong>Known players</strong>
+        <ul id="known-players"></ul>
+      </div>
+      <div>
+        <strong>Order preview</strong>
+        <ul id="order-preview" class="order-preview"></ul>
+      </div>
+      <button id="start-game">Start game</button>
+    </section>
+
+    <section>
+      <h2>Current game</h2>
+      <div class="row">
+        <span class="muted">Game ID:</span>
+        <span id="game-id">None</span>
+      </div>
+      <div class="row">
+        <button id="finish-game" class="danger">Finish game</button>
+      </div>
+      <div>
+        <strong>Player order</strong>
+        <ul id="player-order" class="player-order"></ul>
+      </div>
+      <div class="row">
+        <select id="score-player"></select>
+        <input id="score-input" type="number" placeholder="Score" />
+        <button id="add-score">Add score</button>
+      </div>
+      <div>
+        <strong>Scoreboard</strong>
+        <table class="score-table">
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Total</th>
+              <th>Rounds</th>
+            </tr>
+          </thead>
+          <tbody id="scoreboard"></tbody>
+        </table>
+      </div>
+      <div>
+        <strong>Score log</strong>
+        <ul id="score-log" class="score-log"></ul>
+      </div>
+    </section>
+
+    <section>
+      <h2>Stats & history</h2>
+      <div>
+        <strong>Lifetime stats</strong>
+        <ul id="stats"></ul>
+      </div>
+      <div>
+        <strong>Recent history</strong>
+        <div id="history" class="history-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const STORAGE_KEY = "farkle-companion";
+
+    const defaultState = {
+      knownPlayers: [],
+      currentGame: null,
+      history: [],
+      stats: {},
+      completedGames: []
+    };
+
+    const state = loadState();
+
+    const elements = {
+      newPlayerName: document.getElementById("new-player-name"),
+      addPlayer: document.getElementById("add-player"),
+      knownPlayers: document.getElementById("known-players"),
+      orderPreview: document.getElementById("order-preview"),
+      startGame: document.getElementById("start-game"),
+      gameId: document.getElementById("game-id"),
+      finishGame: document.getElementById("finish-game"),
+      playerOrder: document.getElementById("player-order"),
+      scorePlayer: document.getElementById("score-player"),
+      scoreInput: document.getElementById("score-input"),
+      addScore: document.getElementById("add-score"),
+      scoreboard: document.getElementById("scoreboard"),
+      scoreLog: document.getElementById("score-log"),
+      stats: document.getElementById("stats"),
+      history: document.getElementById("history")
+    };
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) return structuredClone(defaultState);
+        const parsed = JSON.parse(saved);
+        return { ...structuredClone(defaultState), ...parsed };
+      } catch (error) {
+        console.error("Failed to load state", error);
+        return structuredClone(defaultState);
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function sanitizeName(name) {
+      return name.trim().replace(/\s+/g, " ");
+    }
+
+    function selectedPlayers() {
+      return Array.from(elements.knownPlayers.querySelectorAll("input:checked"))
+        .map((input) => input.value);
+    }
+
+    function renderKnownPlayers() {
+      elements.knownPlayers.innerHTML = "";
+      if (state.knownPlayers.length === 0) {
+        const li = document.createElement("li");
+        li.className = "muted";
+        li.textContent = "No players yet. Add your first one!";
+        elements.knownPlayers.appendChild(li);
+        return;
+      }
+
+      state.knownPlayers.forEach((player) => {
+        const li = document.createElement("li");
+        const label = document.createElement("label");
+        label.className = "player-pill";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.value = player;
+        checkbox.checked = state.currentGame?.players.some((p) => p.name === player) ?? false;
+        checkbox.addEventListener("change", renderOrderPreview);
+        label.appendChild(checkbox);
+        label.append(player);
+        const actions = document.createElement("span");
+        actions.className = "player-actions";
+        const edit = document.createElement("button");
+        edit.textContent = "Rename";
+        edit.className = "secondary";
+        edit.addEventListener("click", () => renamePlayer(player));
+        const remove = document.createElement("button");
+        remove.textContent = "Remove";
+        remove.className = "secondary";
+        remove.addEventListener("click", () => removePlayer(player));
+        actions.append(edit, remove);
+        li.append(label, actions);
+        elements.knownPlayers.appendChild(li);
+      });
+    }
+
+    function renderOrderPreview() {
+      elements.orderPreview.innerHTML = "";
+      const players = selectedPlayers();
+      if (players.length === 0) {
+        elements.orderPreview.innerHTML = "<li class=\"muted\">Select players to set order.</li>";
+        return;
+      }
+
+      players.forEach((player, index) => {
+        const li = document.createElement("li");
+        li.dataset.name = player;
+        const name = document.createElement("span");
+        name.textContent = `${index + 1}. ${player}`;
+        const controls = document.createElement("div");
+        controls.className = "row";
+        const up = document.createElement("button");
+        up.textContent = "↑";
+        up.className = "secondary";
+        up.addEventListener("click", () => movePreviewPlayer(player, -1));
+        const down = document.createElement("button");
+        down.textContent = "↓";
+        down.className = "secondary";
+        down.addEventListener("click", () => movePreviewPlayer(player, 1));
+        controls.append(up, down);
+        li.append(name, controls);
+        elements.orderPreview.appendChild(li);
+      });
+    }
+
+    function movePreviewPlayer(name, direction) {
+      const players = selectedPlayers();
+      const index = players.findIndex((player) => player === name);
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= players.length) return;
+      players.splice(index, 1);
+      players.splice(targetIndex, 0, name);
+      Array.from(elements.knownPlayers.querySelectorAll("input[type=checkbox]")).forEach((checkbox) => {
+        checkbox.checked = players.includes(checkbox.value);
+      });
+      state.previewOrder = players;
+      renderOrderPreview();
+    }
+
+    function createGame(players) {
+      const gameId = `GAME-${Date.now().toString(36)}`;
+      state.currentGame = {
+        id: gameId,
+        players: players.map((name) => ({ name, scores: [], total: 0 })),
+        startedAt: new Date().toISOString()
+      };
+      state.history.unshift({
+        id: gameId,
+        type: "start",
+        timestamp: new Date().toISOString(),
+        detail: `New game started with ${players.join(", ")}.`
+      });
+
+      players.forEach((name) => {
+        if (!state.stats[name]) {
+          state.stats[name] = { games: 0, totalPoints: 0, rounds: 0, bestRound: 0 };
+        }
+        state.stats[name].games += 1;
+      });
+
+      saveState();
+      renderAll();
+    }
+
+    function finishGame() {
+      if (!state.currentGame) return;
+      const summary = {
+        id: state.currentGame.id,
+        finishedAt: new Date().toISOString(),
+        players: state.currentGame.players.map((player) => ({
+          name: player.name,
+          total: player.total,
+          rounds: player.scores.length
+        }))
+      };
+      state.completedGames.unshift(summary);
+      state.history.unshift({
+        id: `${state.currentGame.id}-end`,
+        type: "finish",
+        timestamp: new Date().toISOString(),
+        detail: `Game finished. Winner: ${winnerName(summary) || "TBD"}.`
+      });
+      state.currentGame = null;
+      saveState();
+      renderAll();
+    }
+
+    function winnerName(summary) {
+      if (!summary || summary.players.length === 0) return null;
+      const sorted = [...summary.players].sort((a, b) => b.total - a.total);
+      return sorted[0].name;
+    }
+
+    function movePlayer(name, direction) {
+      const players = state.currentGame.players;
+      const index = players.findIndex((player) => player.name === name);
+      if (index < 0) return;
+      const targetIndex = index + direction;
+      if (targetIndex < 0 || targetIndex >= players.length) return;
+      const [player] = players.splice(index, 1);
+      players.splice(targetIndex, 0, player);
+      saveState();
+      renderAll();
+    }
+
+    function renamePlayer(currentName) {
+      const nextName = sanitizeName(prompt("Rename player", currentName) || "");
+      if (!nextName || nextName === currentName) return;
+      if (state.knownPlayers.includes(nextName)) {
+        alert("That name already exists.");
+        return;
+      }
+      state.knownPlayers = state.knownPlayers.map((player) =>
+        player === currentName ? nextName : player
+      );
+      if (state.stats[currentName]) {
+        state.stats[nextName] = state.stats[currentName];
+        delete state.stats[currentName];
+      }
+      if (state.currentGame) {
+        state.currentGame.players.forEach((player) => {
+          if (player.name === currentName) player.name = nextName;
+        });
+      }
+      saveState();
+      renderAll();
+    }
+
+    function removePlayer(playerName) {
+      if (!confirm(`Remove ${playerName}? This won't delete past stats.`)) return;
+      state.knownPlayers = state.knownPlayers.filter((player) => player !== playerName);
+      saveState();
+      renderAll();
+    }
+
+    function renderGame() {
+      if (!state.currentGame) {
+        elements.gameId.textContent = "None";
+        elements.playerOrder.innerHTML = "";
+        elements.scorePlayer.innerHTML = "";
+        elements.scoreboard.innerHTML = "";
+        elements.scoreLog.innerHTML = "";
+        elements.finishGame.disabled = true;
+        return;
+      }
+
+      elements.gameId.textContent = state.currentGame.id;
+      elements.finishGame.disabled = false;
+      elements.playerOrder.innerHTML = "";
+      state.currentGame.players.forEach((player) => {
+        const li = document.createElement("li");
+        li.dataset.name = player.name;
+        const name = document.createElement("span");
+        name.textContent = player.name;
+        const controls = document.createElement("div");
+        controls.className = "row";
+        const up = document.createElement("button");
+        up.textContent = "↑";
+        up.className = "secondary";
+        up.addEventListener("click", () => movePlayer(player.name, -1));
+        const down = document.createElement("button");
+        down.textContent = "↓";
+        down.className = "secondary";
+        down.addEventListener("click", () => movePlayer(player.name, 1));
+        controls.append(up, down);
+        li.append(name, controls);
+        elements.playerOrder.appendChild(li);
+      });
+
+      elements.scorePlayer.innerHTML = "";
+      state.currentGame.players.forEach((player) => {
+        const option = document.createElement("option");
+        option.value = player.name;
+        option.textContent = player.name;
+        elements.scorePlayer.appendChild(option);
+      });
+
+      elements.scoreboard.innerHTML = "";
+      state.currentGame.players.forEach((player) => {
+        const tr = document.createElement("tr");
+        const nameTd = document.createElement("td");
+        nameTd.textContent = player.name;
+        const totalTd = document.createElement("td");
+        totalTd.textContent = player.total;
+        const roundsTd = document.createElement("td");
+        roundsTd.textContent = player.scores.length;
+        tr.append(nameTd, totalTd, roundsTd);
+        elements.scoreboard.appendChild(tr);
+      });
+
+      renderScoreLog();
+    }
+
+    function renderScoreLog() {
+      elements.scoreLog.innerHTML = "";
+      if (!state.currentGame) return;
+      const entries = [];
+      state.currentGame.players.forEach((player) => {
+        player.scores.forEach((score, index) => {
+          entries.push({ player: player.name, score, index });
+        });
+      });
+      if (entries.length === 0) {
+        elements.scoreLog.innerHTML = "<li class=\"muted\">No scores yet.</li>";
+        return;
+      }
+      entries.forEach((entry) => {
+        const li = document.createElement("li");
+        const label = document.createElement("span");
+        label.textContent = `${entry.player}: ${entry.score}`;
+        const remove = document.createElement("button");
+        remove.textContent = "Undo";
+        remove.className = "secondary";
+        remove.addEventListener("click", () => removeScore(entry.player, entry.index));
+        li.append(label, remove);
+        elements.scoreLog.appendChild(li);
+      });
+    }
+
+    function removeScore(playerName, scoreIndex) {
+      const player = state.currentGame.players.find((p) => p.name === playerName);
+      if (!player) return;
+      const [removed] = player.scores.splice(scoreIndex, 1);
+      if (removed === undefined) return;
+      player.total -= removed;
+      state.stats[playerName].totalPoints -= removed;
+      state.stats[playerName].rounds = Math.max(0, state.stats[playerName].rounds - 1);
+      state.history.unshift({
+        id: `${state.currentGame.id}-${Date.now()}`,
+        type: "undo",
+        timestamp: new Date().toISOString(),
+        detail: `Removed ${removed} points from ${playerName}.`
+      });
+      saveState();
+      renderAll();
+    }
+
+    function renderStats() {
+      elements.stats.innerHTML = "";
+      const entries = Object.entries(state.stats);
+      if (entries.length === 0) {
+        const li = document.createElement("li");
+        li.className = "muted";
+        li.textContent = "Stats show up after you start recording scores.";
+        elements.stats.appendChild(li);
+        return;
+      }
+
+      entries
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .forEach(([name, stat]) => {
+          const li = document.createElement("li");
+          li.textContent = `${name}: ${stat.games} games, ${stat.rounds} rounds, ${stat.totalPoints} points`;
+          elements.stats.appendChild(li);
+        });
+    }
+
+    function renderHistory() {
+      elements.history.innerHTML = "";
+      if (state.history.length === 0) {
+        elements.history.innerHTML = "<div class=\"muted\">History is empty. Start a game and add scores!</div>";
+        return;
+      }
+
+      state.history.slice(0, 14).forEach((entry) => {
+        const card = document.createElement("div");
+        card.className = "history-card";
+        const time = new Date(entry.timestamp).toLocaleString();
+        card.innerHTML = `
+          <div><strong>${entry.type.toUpperCase()}</strong> · ${time}</div>
+          <div class="muted">${entry.detail}</div>
+        `;
+        elements.history.appendChild(card);
+      });
+    }
+
+    function renderAll() {
+      renderKnownPlayers();
+      renderOrderPreview();
+      renderGame();
+      renderStats();
+      renderHistory();
+    }
+
+    function addPlayer() {
+      const name = sanitizeName(elements.newPlayerName.value);
+      if (!name) return;
+      if (!state.knownPlayers.includes(name)) {
+        state.knownPlayers.push(name);
+      }
+      elements.newPlayerName.value = "";
+      saveState();
+      renderAll();
+    }
+
+    elements.addPlayer.addEventListener("click", addPlayer);
+    elements.newPlayerName.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") addPlayer();
+    });
+
+    elements.startGame.addEventListener("click", () => {
+      const selected = selectedPlayers();
+      if (selected.length === 0) {
+        alert("Pick at least one player to start a game.");
+        return;
+      }
+      if (state.currentGame && !confirm("A game is already in progress. Start a new game anyway?")) {
+        return;
+      }
+      createGame(selected);
+    });
+
+    elements.finishGame.addEventListener("click", () => {
+      if (!state.currentGame) return;
+      if (!confirm("Finish the current game?")) return;
+      finishGame();
+    });
+
+    function addScore() {
+      if (!state.currentGame) {
+        alert("Start a game first.");
+        return;
+      }
+      const playerName = elements.scorePlayer.value;
+      const scoreValue = Number(elements.scoreInput.value);
+      if (!playerName || Number.isNaN(scoreValue)) {
+        alert("Select a player and enter a score.");
+        return;
+      }
+      const player = state.currentGame.players.find((p) => p.name === playerName);
+      if (!player) return;
+      player.scores.push(scoreValue);
+      player.total += scoreValue;
+
+      if (!state.stats[playerName]) {
+        state.stats[playerName] = { games: 0, totalPoints: 0, rounds: 0, bestRound: 0 };
+      }
+      state.stats[playerName].totalPoints += scoreValue;
+      state.stats[playerName].rounds += 1;
+      state.stats[playerName].bestRound = Math.max(state.stats[playerName].bestRound, scoreValue);
+
+      const detail = `${playerName} scored ${scoreValue} points.`;
+      state.history.unshift({
+        id: `${state.currentGame.id}-${Date.now()}`,
+        type: "score",
+        timestamp: new Date().toISOString(),
+        detail
+      });
+
+      elements.scoreInput.value = "";
+      saveState();
+      renderAll();
+    }
+
+    elements.addScore.addEventListener("click", addScore);
+    elements.scoreInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") addScore();
+    });
+
+    renderAll();
+  </script>
+</body>
+</html>
